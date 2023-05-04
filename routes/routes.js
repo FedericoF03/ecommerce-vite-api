@@ -1,11 +1,7 @@
 import Express from "express";
+import AuthRoutes from "./Auth/Auth.js";
 
 const Router = Express.Router();
+Router.use("/auth", AuthRoutes);
 
-Router.get("/", (req, res) => {
-  console.log("sas")
-  res.send("Ruta")
-});
-
-
-export default Router
+export default Router;
