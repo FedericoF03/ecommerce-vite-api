@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Logs
 logs
 *.log
@@ -24,3 +25,33 @@ dist-ssr
 *.sln
 *.sw?
 /public
+=======
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+#Config
+package-lock.json
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+/build
+
+# misc
+.env
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+>>>>>>> 5fa0677fd04e472a844577b1d9542155682b5c6f
