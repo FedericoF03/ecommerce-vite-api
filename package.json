@@ -5,10 +5,7 @@
   "main": "./server.js",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 3000",
-    "build": "vite build",
-    "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "dev": "vite --port 3005 --experimental-fetch"
   },
   "dependencies": {
     "cookie-parser": "^1.4.6",
