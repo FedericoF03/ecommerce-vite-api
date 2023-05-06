@@ -1,7 +1,9 @@
 import Express from "express";
-import { login, register } from "./functions.js";
+import { login, registerApi, registerML } from "./functions.js";
+import DBConnect, { DBdisconnect } from "../../middlewares/DB.js";
 
 const router = Express.Router();
-router.get("/authorization", register, login )
+router.get("/ml", registerML, login )
+router.get("/api", DBConnect, registerApi, DBdisconnect)
 
 export default router

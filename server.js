@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv'
 
 import Express from "express";
-import Router from "./src/routes/routes.js";
+import Router from './src/Routes/routes.js';
 import morgan from "morgan";
 import CORS from "cors"
 import cookieParser from "cookie-parser";

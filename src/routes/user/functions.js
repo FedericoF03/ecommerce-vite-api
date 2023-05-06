@@ -1,7 +1,6 @@
 import UserController from "../../controllers/UserController.js";
-import { v4 as uuidv4 } from "uuid";
 
-export const userGet = async (req, res) => {
+export const userGet = async (req, res, next) => {
   const HTTPconfig = {
     url: "https://api.mercadolibre.com/users/me",
     token: `Bearer ${req.cookies.access}`,
@@ -12,13 +11,16 @@ export const userGet = async (req, res) => {
     },
   });
   const user = await getUser.json();
-  console.log(user);
-  res.status(200).json(true);
-};
-
-export const userCreate = async (req, res, next) => {
-  console.log("paso por ruta");
-  const userController = await new UserController();
-  await userController.controllerCreateUser({});
-  next();
+  if (user.status !== 400) {
+    next();
+    res.json(user);
+  } else {
+    const user = new UserController();
+    const resUser = await user.controllerFindUserML({
+      acces_token: req.cookies.acces
+    });
+    next();
+    resUser && res.json(resUser);
+    !resUser && res.json("no auth")
+  }
 };

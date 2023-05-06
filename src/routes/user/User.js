@@ -1,11 +1,9 @@
 import Express from "express";
-import {verifyAuth} from "../../middlewares/VerifyAuth.js"
-import mongooseConnect, {DBdisconnect} from "../../middlewares/DB.js"
-import { userCreate, userGet } from "./functions.js";
+import {refreshAcces} from "../../middlewares/refreshAcces.js"
+import {DBdisconnect} from "../../middlewares/DB.js"
+import { userGet } from "./functions.js";
 
 const Router = Express.Router()
 
-Router.use("/me", verifyAuth, userGet)
-Router.use("/create", mongooseConnect, verifyAuth, userCreate, DBdisconnect)
-
+Router.use("/me", refreshAcces, userGet, DBdisconnect)
 export default Router
