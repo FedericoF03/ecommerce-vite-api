@@ -1,12 +1,20 @@
 import { Schema } from "mongoose";
 
 export const UserSchema = new Schema({
-  refresh_token: { type: String, default: null },
-  acces_token: { type: String, default: null },
+  status_account: {
+    code: { type: String, default: null },
+    status: { type: Boolean, default: false },
+  },
+  refresh_token: {
+    token: { type: String, default: null },
+    date: { type: Date, default: null },
+  },
+  acces_token: {
+    token: { type: String, default: null },
+    date: { type: Date, default: null },
+  },
   id_DB: { type: String, required: true, unique: true },
-  id_ML: { type: Number, default: null, unique: true },
-  password: { type: String },
-  Auth_ML: { type: Boolean, default: false },
+  password: { type: String, required: true },
   phone: { number: { type: Number, default: null } },
   address_line: { type: String, default: null },
   floor: { type: Number, default: null },

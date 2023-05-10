@@ -8,9 +8,15 @@ export default class UserController {
     return res
   }
 
-  controllerFindUserML = async (obj) => {
+  controllerFindUser = async (obj) => {
     const userModelFind = new UserModel(obj)
-    const res = await userModelFind.FindUserML()
+    const res = await userModelFind.FindUser()
+    return res
+  }
+
+  controllerUpdateUser = async (obj, filter) => {
+    const userModelFind = new UserModel(obj,filter)
+    const res = await userModelFind.updateUser()
     return res
   }
 }

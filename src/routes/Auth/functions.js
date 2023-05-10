@@ -1,4 +1,5 @@
 import UserController from "../../controllers/UserController.js";
+import sendEmail from "../../middlewares/Email.js";
 import {
   base64URLEncode,
   sha256,
@@ -30,15 +31,90 @@ export const registerML = (req, res, next) => {
 };
 
 export const registerApi = async (req, res, next) => {
+  req.body.generateID = uuidv4().split("-")[0];
+  const { email, last_name, first_name, generateID, password } = req.body;
   try {
+    sendEmail(req.body);
     const user = new UserController();
-    await user.controllerCreateUser();
+    const userFind = await user.controllerFindUser({
+      email,
+      "status_account.status": false,
+    });
+    if (!userFind) {
+      await user.controllerCreateUser({
+        id_DB: uuidv4(),
+        email,
+        last_name,
+        first_name,
+        password,
+        "status_account.code": generateID,
+      });
+    } else if (userFind) {
+      await user.controllerUpdateUser(
+        {
+          "status_account.code": generateID,
+        },
+        email
+      );
+    }
   } catch (error) {
     console.log(error);
-    res.status(404).json("Error");
+    return res.status(404).json("Error");
   }
-  res.json(true)
   next();
+  return res.json(email);
+};
+
+export const registerApiConfirm = async (req, res, next) => {
+  const { email, code } = req.body;
+  try {
+    const user = new UserController();
+    const test = await user.controllerUpdateUser(
+      { "status_account.status": true, "status_account.code": null },
+      { "status_account.code": code, email }
+    );
+    console.log(test);
+  } catch (error) {
+    console.log(error);
+    return res.status(404).json("Error");
+  }
+  next();
+  return res.json(true);
+};
+
+export const loginApi = async (req, res, next) => {
+  const { username, password } = req.body;
+  try {
+    const user = new UserController();
+    const generateAcces = uuidv4().split("-").join("");
+    const generateRefresh = uuidv4().split("-").join("");
+    await user.controllerUpdateUser(
+      {
+        acces_token: {
+          token: generateAcces,
+          date: new Date(Date.now() + 21600000),
+        },
+        refresh_token: {
+          token: generateRefresh,
+          date: new Date(Date.now() + 15778800000),
+        },
+      },
+      {
+        $and: [
+          { $or: [{ email: username }, { nickname: username }] },
+          { password },
+          { "status_account.status": true },
+        ],
+      }
+    );
+    cookiesConfig.maxAge = hours.refresh;
+    res.cookie("refresh", generateRefresh, cookiesConfig);
+  } catch (error) {
+    console.log(error);
+    return res.status(404).json("Error");
+  }
+  next();
+  return res.json(true);
 };
 
 export const login = async (req, res) => {

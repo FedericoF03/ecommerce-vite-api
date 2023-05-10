@@ -3,24 +3,27 @@ import UserController from "../../controllers/UserController.js";
 export const userGet = async (req, res, next) => {
   const HTTPconfig = {
     url: "https://api.mercadolibre.com/users/me",
-    token: `Bearer ${req.cookies.access}`,
+    token: `Bearer ${req.cookies.access}s`,
+    accesConfigInit: "APP",
   };
-  const getUser = await fetch(HTTPconfig.url, {
-    headers: {
-      Authorization: HTTPconfig.token,
-    },
-  });
-  const user = await getUser.json();
-  if (user.status !== 400) {
+  if (req.cookies.access && req.cookies.access.includes(HTTPconfig.accesConfigInit)) {
+    const getUser = await fetch(HTTPconfig.url, {
+      headers: {
+        Authorization: HTTPconfig.token,
+      },
+    });
+    const user = await getUser.json();
     next();
+    if (user.status == 400) return res.json("no auth api");
     res.json(user);
   } else {
     const user = new UserController();
-    const resUser = await user.controllerFindUserML({
-      acces_token: req.cookies.acces
+    const resUser = await user.controllerFindUser({
+      "refresh_token.token": req.cookies.refresh,
     });
+    // console.log(resUser)
     next();
-    resUser && res.json(resUser);
-    !resUser && res.json("no auth")
+    if (resUser) return res.json(resUser);
+    if (!resUser) return res.json("no auth");
   }
 };

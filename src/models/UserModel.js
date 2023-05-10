@@ -4,18 +4,22 @@ import { UserSchema } from "../schemas/UserSchema.js";
 const User = model("User", UserSchema);
 
 export default class UserModel {
-  constructor(obj) {
+  constructor(obj, filter) {
     this.obj = obj;
+    this.filter = filter
   }
   async CreateUser() {
     const newUser = await User.create(this.obj);
     return newUser
   }
 
-  async FindUserML() {
-    const newUser = await User.findOne({
-      id_ML: this.obj.id
-    });
+  async FindUser() {
+    const newUser = await User.findOne(this.obj);
+    return newUser
+  }
+
+  async updateUser() {
+    const newUser = await User.findOneAndUpdate(this.filter, this.obj);
     return newUser
   }
 }
