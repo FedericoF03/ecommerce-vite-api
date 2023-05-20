@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer"
-const sendEmail = async ({email, generateID}) => {
+const sendEmail = async ({email, generateCode}) => {
   let testAccount = await nodemailer.createTestAccount();
 
   // create reusable transporter object using the default SMTP transport
@@ -18,7 +18,7 @@ const sendEmail = async ({email, generateID}) => {
     from: '"Fred Foo 👻" <foo@example.com>', // sender address
     to: email, // list of receivers
     subject: "Code Authentication", // Subject line
-    html: `<b>${generateID} is the code for ingress in your auth</b>`, // html body
+    html: `<b>${generateCode} is the code for ingress in your auth</b>`, // html body
   });
 
   console.log("Message sent: %s", info.messageId);
