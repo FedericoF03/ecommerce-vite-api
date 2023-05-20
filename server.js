@@ -11,6 +11,8 @@ const app = Express();
 const port = 3005;
 const logger = morgan("tiny");
 
+app.set('trust proxy', true)
+
 app.use(bodyParser.json())
 app.use(CORS({
   origin: "http://localhost:3000",
