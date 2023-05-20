@@ -1,19 +1,13 @@
 import { Schema } from "mongoose";
+import { v4 as uuidv4 } from "uuid";
 
 export const UserSchema = new Schema({
-  status_account: {
+  account: {
     code: { type: String, default: null },
     status: { type: Boolean, default: false },
   },
-  refresh_token: {
-    token: { type: String, default: null },
-    date: { type: Date, default: null },
-  },
-  acces_token: {
-    token: { type: String, default: null },
-    date: { type: Date, default: null },
-  },
-  id_DB: { type: String, required: true, unique: true },
+  id: { type: String, unique: true, default: () => uuidv4() },
+  id_MELI: { type: Number, default: null },
   password: { type: String, required: true },
   phone: { number: { type: Number, default: null } },
   address_line: { type: String, default: null },
@@ -44,7 +38,7 @@ export const UserSchema = new Schema({
   last_name: { type: String, required: true },
   gender: { type: String, default: null },
   country_id: { type: String, default: null },
-  email: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
   identification: {
     number: { type: Number, default: null },
     type: { type: String, default: null },
