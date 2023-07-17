@@ -15,7 +15,7 @@ export default class UserModel {
   }
 
   async FindUser() {
-    const newUser = await User.findOne(this.obj).select({id:1})
+    const newUser = await User.findOne(this.obj).select({id:1, id_MELI: 1,})
     return newUser
   }
 
