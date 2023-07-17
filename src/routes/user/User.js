@@ -1,10 +1,27 @@
 import Express from "express";
-import {refreshAcces} from "../../middlewares/refreshAcces.js"
-import {DBdisconnect} from "../../middlewares/DB.js"
-import { favoriteGet, userGet } from "./functions.js";
+import {
+  favoriteGet,
+  favoritePost,
+  userGet,
+  cartGet,
+  cartPost,
+  boughtGet,
+  boughtPost,
+  cartDelete,
+  favoriteDelete,
+  sellerProfile,
+} from "./functions.js";
 
-const Router = Express.Router()
+const Router = Express.Router();
 
-Router.get("/me", refreshAcces, userGet, DBdisconnect)
-Router.get("/favorite", refreshAcces, favoriteGet, DBdisconnect)
-export default Router
+Router.get("/favorite", favoriteGet)
+  .post("/favorite", favoritePost)
+  .delete("/favorite", favoriteDelete)
+  .get("/cart", cartGet)
+  .post("/cart", cartPost)
+  .delete("/cart", cartDelete)
+  .get("/bought", boughtGet)
+  .post("/bought", boughtPost)
+  .get("/me", userGet)
+  .get("/seller/profile", sellerProfile);
+export default Router;

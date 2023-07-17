@@ -13,6 +13,7 @@ import {
 
 import { HTTPConfig } from "../../utils/HTTPconfig.js";
 import { cookiesConfig, hours } from "../../utils/cookiesConfig.js";
+import handlerError from "../../utils/handleError.js";
 
 export const generateRedirect = (req, res, next) => {
   try {
@@ -39,10 +40,11 @@ export const generateRedirect = (req, res, next) => {
       `code_challenge_method=S256`,
       `state=${state}`,
     ].join("&");
+
     res.cookie("verifier", token, cookiesConfig);
-    res.status(200).json(url);
+    res.status(200).json({ msg: "permisos adquiridos", url });
   } catch (error) {
-    res.status(404).json(error.message);
+    res.status(404).json({ msg: error.message });
   }
 };
 
@@ -51,12 +53,8 @@ export const loginMELI = async (req, res, next) => {
     //checkeo si existe verifier, si no es el caso
     // significa que hubo un problema y no fue encontrado
     // Entonces lanzo error
+    if (!req.cookies?.verifier) handlerError("Verifier not found");
 
-    if (!req.cookies?.verifier) {
-      const error = new Error("Verifier not found");
-      error.code = 404;
-      throw error;
-    }
     //Si existe lo verifica con su llave privada debido a que esta cifrado
     const verifier = jwt.verify(req.cookies.verifier, process.env.SECRET_KEY);
 
@@ -75,58 +73,70 @@ export const loginMELI = async (req, res, next) => {
       HTTPConfig.urls.urlAccessToken,
       HTTPConfig.bodies.objPost
     );
-    const resAcces = await acces.json();
 
+    const resAcces = await acces.json();
     //Se verifica el estado de llegada y si no es correcto se lanza error
-    if (resAcces.status === 400) throw new Error("Error en la Autenticacion");
+    if (resAcces.status === 400) handlerError("Error en la Autenticacion");
 
     //Si es correcto se llama al obj y
     // se guardan los datos en caso de no existir pero si existe se actualizan
     const objDB = {
-      filter: {
+      filterUser: {
         id_MELI: resAcces.user_id,
       },
       obj: {
-        acces_token: {
-          code: resAcces.access_token,
-          date: new Date(Date.now() + hours.hours6),
-        },
         $push: {
-          "refresh_tokens.tokens": {
-            code: resAcces.refresh_token,
-            date: new Date(Date.now() + hours.week),
+          "acces_token.tokens": {
+            code: resAcces.access_token,
+            date: new Date(Date.now() + hours.hours6),
             ip: req.ip,
           },
         },
       },
+      objToken: {
+        acces_token: {
+          code: resAcces.access_token,
+        },
+        refresh_token: {
+          code: resAcces.refresh_token,
+          date: new Date(Date.now() + hours.week),
+        },
+      },
       options: { upsert: true },
     };
+
+    const userDB = new UserController();
+    await userDB.controllerUpdateUser(
+      objDB.filterUser,
+      objDB.obj,
+      objDB.options
+    );
     const tokenDB = new TokenController();
-    await tokenDB.controllerUpdateToken(objDB.filter, objDB.obj, objDB.options);
+    await tokenDB.controllerCreateToken(objDB.objToken);
+
     //si no hubo problemas finalmente borramos el verifier y enviamos el refresh cifrado
     res.clearCookie("verifier");
     const refresh = jwt.sign(resAcces.refresh_token, process.env.SECRET_KEY);
     res.cookie("refresh", refresh, cookiesConfig);
     next();
-    res.status(200).json("/");
+    return res.status(200).json({ url: "/" });
   } catch (error) {
     //si el codigo es que no se encontro el verifier entonces se evita el paso de limpiarlo,
     //caso contrario se envia el error
     next();
-    if (error !== 404) res.clearCookie("verifier");
-    res.status(404).json(error.message);
+    if (error.name === "JsonWebTokenError") {
+      res.clearCookie("verifier");
+    }
+    next();
+    return res.status(404).json({ msg: error.message });
   }
 };
 
 export const registerApi = async (req, res, next) => {
   try {
-    
     //Genero el codigo y armo el objeto de la peticion con su filtro, objeto y opcion
     const generateCode = uuidv4().split("-")[0];
     const request = {
-      filterCreateOrUpdateUser: {
-        $and: [{ email: req.body.email }, { "account.status": false }],
-      },
       filterFindUser: {
         $and: [{ email: req.body.email }, { "account.status": true }],
       },
@@ -144,25 +154,22 @@ export const registerApi = async (req, res, next) => {
     const user = new UserController();
     const userExist = await user.controllerFindUser(request.filterFindUser);
 
+    //verifica si el usuario fue autenticado ya o no.
+    //Si no lo fue envia el correo con el codigo, caso contrario devuelve un error
+
     if (!userExist) {
       await user.controllerUpdateUser(
-        request.filterCreateOrUpdateUser,
+        { email: req.body.email },
         request.obj,
         request.options
       );
       sendEmail({ ...req.body, generateCode });
-      next();
-      return res.status(200).json(req.body.email);
-    } else {
-      next();
-      return res.status(409).json("el usuario ya existe");
-    }
+    } else handlerError("el usuario ya existe");
+    //Si se envia el codigo se guarda el email al que hace ref
+    return res.status(200).json(req.body.email);
   } catch (error) {
-    console.log(error);
     next();
-    return res
-      .status(404)
-      .json("Error");
+    return res.status(404).json(error.message);
   }
 };
 
@@ -178,14 +185,13 @@ export const registerApiConfirm = async (req, res, next) => {
     // para enviar si se puede authenticar o si ya lo esta o no existe
     const user = new UserController();
     const useRes = await user.controllerUpdateUser(request.filter, request.obj);
-    if (!useRes)
-      throw new Error("El correo no existe o el codigo es incorrecto.");
+    if (!useRes) handlerError("El correo no existe o el codigo es incorrecto.");
+    next();
+    return res.status(200).json("auth exitosa");
   } catch (error) {
     next();
     return res.status(409).json(error.message);
   }
-  next();
-  return res.status(200).json("Auth exitosa");
 };
 
 export const loginApi = async (req, res, next) => {
@@ -202,53 +208,77 @@ export const loginApi = async (req, res, next) => {
           { "account.status": true },
         ],
       },
-      filterFindUser: {
-        $and: [
-          { $or: [{ email: username }, { nickname: username }] },
-          { password },
-          { "account.status": true },
-        ],
-      },
       obj: {
-        acces_token: {
-          code: acces,
-          date: new Date(Date.now() + hours.week),
-        },
         $push: {
-          "refresh_tokens.tokens": {
-            code: refresh,
+          "acces_token.tokens": {
+            code: acces,
             date: new Date(Date.now() + hours.hours6),
             ip: req.ip,
           },
         },
       },
+      objToken: {
+        acces_token: {
+          code: acces,
+        },
+        refresh_token: {
+          code: refresh,
+          date: new Date(Date.now() + hours.week),
+        },
+      },
       options: { upsert: true },
     };
 
-    console.log(refresh)
     const jwtRefresh = jwt.sign(refresh, process.env.SECRET_KEY);
     //Se llama al controlador para actualizar
     //si hay coincidencia los campos dados,
     //esto se da en el caso de que una de que coincidan los 3 filtros
     const user = new UserController();
-    const userRes = await user.controllerFindUser(request.filterFindUser);
-    if (!userRes) {
-      next();
-      return res.status(404).json("No se encontro registro");
-    }
+    const userRes = await user.controllerUpdateUser(
+      request.filterFindUser,
+      request.obj
+    );
+    if (!userRes) handlerError("No se encontro registro");
     // if (!tokenRes) throw new Error("Error en contraseña o usuario");
     // cookiesConfig.maxAge = hours.refresh;
     const token = new TokenController();
-    await token.controllerUpdateToken(
-      { id_DB: userRes.id },
-      request.obj,
-      request.options
-    );
+    await token.controllerCreateToken(request.objToken);
     res.cookie("refresh", jwtRefresh, cookiesConfig);
     next();
     return res.status(200).json("Logueo exitoso");
   } catch (error) {
+    console.log(error);
     next();
     return res.status(404).json(error.message);
+  }
+};
+
+export const disconnectUser = async (req, res, next) => {
+  try {
+    if (!req.cookies.refresh)
+      handlerError("problema con el refresh no existe limpiar user");
+
+    const token = jwt.verify(req.cookies.refresh, process.env.SECRET_KEY);
+    const request = {
+      filter: { "refresh_token.token.code": token },
+      obj: {
+        $pull: {
+          "refresh_token.token": { code: token },
+        },
+      },
+    };
+    const tokenClear = new TokenController();
+    const resp = await tokenClear.controllerUpdateToken(
+      request.filter,
+      request.obj
+    );
+    if (!resp) handlerError("No se encontro el refresh");
+    next();
+    res.clearCookie("refresh");
+    res.json(true);
+  } catch (error) {
+    next();
+    res.clearCookie("refresh");
+    res.json(error.message);
   }
 };
