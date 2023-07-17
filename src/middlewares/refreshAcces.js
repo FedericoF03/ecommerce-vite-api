@@ -6,80 +6,95 @@ import UserController from "../controllers/UserController.js";
 import { HTTPConfig } from "../utils/HTTPconfig.js";
 import { cookiesConfig, hours } from "../utils/cookiesConfig.js";
 import TokenController from "../controllers/TokenController.js";
+import handlerError from "../utils/handleError.js";
 
-export const refreshAcces = async (req, res, next) => {
+const refreshAcces = async (req, res, next) => {
   try {
     //Verifica la existencia del refresh y en caso contrario devolver
-    if (!req.cookies.refresh) throw new Error("The refresh token not exist");
-    const refresh = jwt.verify(req.cookies.refresh, process.env.SECRET_KEY);
-
+    if (req.url.includes("/authentication")) return next();
+    if (!req.cookies.refresh) handlerError("The refresh token does not exist.");
+    console.log(req.cookies)
+    //Descrifa refresh token
+    const token = jwt.verify(req.cookies.refresh, process.env.SECRET_KEY);
     const Token = new TokenController();
     const dateNow = new Date();
-    const resToken = await Token.controllerFindToken({
+
+    const request = {
       $and: [
-        { "refresh_tokens.tokens.code": refresh },
-        { "refresh_tokens.tokens.date": { $lt: dateNow } },
+        { "refresh_token.code": token },
+        { "refresh_token.date": { $lt: dateNow } },
       ],
-    });
-    if (resToken && resToken.acces_token.date < dateNow) {
-      if (refresh.includes("TG")) {
-        const url = [
-          `grant_type=refresh_token`,
-          `client_id=${process.env.CLIENT_ID}`,
-          `client_secret=${process.env.CLIENT_SECRET}`,
-          `refresh_token=${refresh}`,
-        ].join("&");
-        HTTPConfig.bodies.objPost.body = url;
-        const getRefresh = await fetch(
-          HTTPConfig.urls.urlAccessToken,
-          HTTPConfig.bodies.objPost
-        );
-        const resrefresh = await getRefresh.json();
-        await Token.controllerUpdateToken(
-          {
-            id_MELI: resToken.id_MELI,
-          },
-          {
-            acces_token: {
-              code: resrefresh.access_token,
-              date: new Date(Date.now() + hours.hours6),
-            },
-            $push: {
-              "refresh_tokens.tokens": {
-                code: resrefresh.refresh_token,
-                date: new Date(Date.now() + hours.week),
-                ip: req.ip,
-              },
-            },
-          }
-        );
-        const refreshJWT = jwt.sign(
-          resrefresh.refresh_token,
-          process.env.SECRET_KEY
-        );
-        res.cookie("refresh", refreshJWT, cookiesConfig);
-      } else {
-        const user = new UserController();
-        await user.controllerUpdateUser(
-          {
-            acces_token: {
-              token: uuidv4().split("-").join(""),
-              date: new Date(Date.now() + hours.hours6),
-            },
-          },
-          {
-            $and: [
-              { "acces_token.date": { $lt: new Date() } },
-              { "refresh_token.token": req.cookies.refresh },
-            ],
-          }
-        );
-      }
+    };
+    const resToken = await Token.controllerFindToken(request);
+    if (!resToken) return next()
+
+    let objrefresh = {
+      acces: uuidv4().split("-").join(""),
+      refresh: uuidv4().split("-").join(""),
+    };
+
+    if (token.includes("TG")) {
+      console.log(token)
+      const url = [
+        `grant_type=refresh_token`,
+        `client_id=${process.env.CLIENT_ID}`,
+        `client_secret=${process.env.CLIENT_SECRET}`,
+        `refresh_token=${token}`,
+      ].join("&");
+
+      HTTPConfig.bodies.objPost.body = url;
+
+      const getRefresh = await fetch(
+        HTTPConfig.urls.urlAccessToken,
+        HTTPConfig.bodies.objPost
+      );
+      const response = await getRefresh.json();
+      console.log(response)
+      objrefresh = { acces: response.access_token, refresh: response.refresh_token };
     }
-    next();
+
+    request.filterFindUser = {
+      "refresh_token.code": token,
+    };
+
+    request.tokenUpdate = {
+      acces_token: {
+        code: objrefresh.acces,
+      },
+      refresh_token: {
+        code: objrefresh.refresh,
+        date: new Date(Date.now() + hours.week),
+      },
+    };
+
+    await Token.controllerUpdateToken(
+      request.filterFindUser,
+      request.tokenUpdate
+    );
+
+    const updateUser = {
+      $push: {
+        "acces_token.tokens": {
+          code: objrefresh.acces,
+          date: new Date(Date.now() + hours.hours6),
+          ip: req.ip,
+        },
+      },
+    };
+
+    const User = new UserController();
+    const userRes = await User.controllerUpdateUser(
+      { "acces_token.tokens.code": resToken.acces_token.code },
+      updateUser
+    );
+    if (!userRes) handlerError("No se encontro registro");
+    const refreshJWT = jwt.sign(objrefresh.refresh, process.env.SECRET_KEY);
+    refreshJWT
+    res.cookie("refresh", refreshJWT, cookiesConfig);
+    return next()
   } catch (error) {
-    console.log(error);
-    DBdisconnect();
-    return res.status(404).json("no auth");
+    return res.status(404).json(error.message);
   }
 };
+
+export default refreshAcces;

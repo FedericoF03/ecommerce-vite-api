@@ -3,11 +3,11 @@ import mongoose from "mongoose";
 async function DBConnect(req, res, next) {
   try {
     await mongoose.connect(process.env.DB_URL);
+    next();
   } catch (error) {
     console.log(error);
-    return next();
+    next();
   }
-  return next();
 }
 
 export default DBConnect;
