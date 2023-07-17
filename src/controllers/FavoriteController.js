@@ -13,9 +13,15 @@ export default class FavoriteController {
     return res;
   };
 
-  controllerDeleteFavorite = async (filter, obj) => {
-    const userModelFind = new FavoriteModel(obj, filter);
+  controllerDeleteFavorite = async (obj) => {
+    const userModelFind = new FavoriteModel(obj);
     const res = await userModelFind.deleteFavorite();
+    return res;
+  };
+
+  controllerUpdateFavorite = async (filter, obj, options) => {
+    const userModelFavorite = new FavoriteModel(obj, filter, options);
+    const res = await userModelFavorite.updateFavorite();
     return res;
   };
 }
