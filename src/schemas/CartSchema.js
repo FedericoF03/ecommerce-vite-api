@@ -1,9 +1,10 @@
 import { Schema } from "mongoose";
+import { v4 as uuidv4 } from "uuid";
 
 export const CartSchema = new Schema({
-  id: { type: String, required: true, unique: true },
-  id_DB: { type: String },
-  id_MELI: { type: String },
+  id: { type: String, unique: true, default: () => uuidv4() },
+  id_DB: { type: String, unique: true },
+  id_MELI: { type: Number, default: null },
   items: [
     {
       item_id: String,

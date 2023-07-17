@@ -6,6 +6,9 @@ export const UserSchema = new Schema({
     code: { type: String, default: null },
     status: { type: Boolean, default: false },
   },
+  acces_token: {
+    tokens: [{ code: { type: String, unique: true }, date: Date, ip: String }],
+  },
   id: { type: String, unique: true, default: () => uuidv4() },
   id_MELI: { type: Number, default: null },
   password: { type: String, required: true },
